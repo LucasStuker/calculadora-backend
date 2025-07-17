@@ -16,6 +16,9 @@ const calculateCommission = (req, res) => {
     // Começa a lógica da calculadora
 
     const comissaoTotal = valor_plano * (percentual_comissao / 100);
+    const TAXA_IMPOSTO = 0.08;
+    const TAXA_ADM = 0.03;
+    const comissaoEmpresa = valor_plano - comissaoTotal;
 
     let entrada_vendedor = 0;
 
@@ -39,19 +42,56 @@ const calculateCommission = (req, res) => {
     //Calcular o saldo de Comissão
 
     const saldoComissão = comissaoTotal - entrada_vendedor;
-    const comissaoEmpresa = valor_plano - comissaoTotal;
 
-    const comissaoPorParcela =
+    const comissaoBrutaPorParcela =
       saldoComissão > 0 ? saldoComissão / numero_parcelas : 0;
 
-    //Resposta da API
+    const valorParcelaCliente = (valor_plano - valor_entrada) / numero_parcelas;
 
+    const detalharParcelas = [];
+    let totalImpostosVendedor = 0;
+
+    const taxaAdmTotal = valor_plano * TAXA_ADM;
+    const taxaAdmPorParcela = taxaAdmTotal / numero_parcelas;
+
+    for (let i = 1; i <= numero_parcelas; i++) {
+      const impostoDaParcela = comissaoBrutaPorParcela * TAXA_IMPOSTO;
+      const comissaoLiquidaPorParcela =
+        comissaoBrutaPorParcela - impostoDaParcela;
+
+      // A empresa recebe:
+
+      const recebimentoEmpresaParcela =
+        valorParcelaCliente - comissaoBrutaPorParcela;
+
+      totalImpostosVendedor += impostoDaParcela;
+
+      detalharParcelas.push({
+        parcela: i,
+        comissao_bruta_vendedor: parseFloat(comissaoBrutaPorParcela.toFixed(2)),
+        impostos_vendedor: parseFloat(impostoDaParcela.toFixed(2)),
+        comissao_liquida_vendedor: parseFloat(
+          comissaoLiquidaPorParcela.toFixed(2)
+        ),
+        recebimento_empresa_parcela: parseFloat(
+          recebimentoEmpresaParcela.toFixed(2)
+        ),
+        taxa_adm_empresa: parseFloat(taxaAdmPorParcela.toFixed(2)),
+      });
+    }
+
+    const valorLiquidoEmpresa = comissaoEmpresa - taxaAdmTotal;
+    //Resposta da API
     res.status(200).json({
-      comissao_total: parseFloat(comissaoTotal.toFixed(2)),
-      entrada_vendedor: parseFloat(entrada_vendedor.toFixed(2)),
-      saldo_comissao_a_receber: parseFloat(saldoComissão.toFixed(2)),
-      comissao_por_parcela: parseFloat(comissaoPorParcela.toFixed(2)),
-      comissao_empresa: parseFloat(comissaoEmpresa.toFixed(2)),
+      resumo: {
+        comissao_total_vendedor: parseFloat(comissaoTotal.toFixed(2)),
+        total_impostos_vendedor: parseFloat(totalImpostosVendedor.toFixed(2)),
+        entrada_vendedor: parseFloat(entrada_vendedor.toFixed(2)),
+        valor_bruto_empresa: parseFloat(comissaoEmpresa.toFixed(2)),
+        valor_taxa_adm_empresa: parseFloat(taxaAdmTotal.toFixed(2)),
+        valor_liquido_empresa: parseFloat(valorLiquidoEmpresa.toFixed(2)),
+      },
+      detalhamento_parcelas: detalharParcelas,
     });
   } catch (error) {
     console.error("erro no calculo", error);
