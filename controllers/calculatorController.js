@@ -2,6 +2,9 @@ const calculateCommission = (req, res) => {
   try {
     const { valor_plano, valor_entrada, percentual_comissao, numero_parcelas } =
       req.body;
+
+    const data_inicio_pagamento = req.body.data_inicio_pagamento || new Date();
+
     if (
       !valor_plano ||
       !valor_entrada ||
@@ -55,6 +58,16 @@ const calculateCommission = (req, res) => {
     const taxaAdmPorParcela = taxaAdmTotal / numero_parcelas;
 
     for (let i = 1; i <= numero_parcelas; i++) {
+      const dataVencimento = new Date(data_inicio_pagamento);
+
+      dataVencimento.setMonth(
+        new Date(data_inicio_pagamento + "T00:00:00").getMonth() + (i - 1)
+      );
+
+      const dataVencimentoFormatada = dataVencimento
+        .toISOString()
+        .split("T")[0];
+
       const impostoDaParcela = comissaoBrutaPorParcela * TAXA_IMPOSTO;
       const comissaoLiquidaPorParcela =
         comissaoBrutaPorParcela - impostoDaParcela;
@@ -68,6 +81,7 @@ const calculateCommission = (req, res) => {
 
       detalharParcelas.push({
         parcela: i,
+        data_vencimento: dataVencimentoFormatada,
         comissao_bruta_vendedor: parseFloat(comissaoBrutaPorParcela.toFixed(2)),
         impostos_vendedor: parseFloat(impostoDaParcela.toFixed(2)),
         comissao_liquida_vendedor: parseFloat(
@@ -90,6 +104,7 @@ const calculateCommission = (req, res) => {
         valor_bruto_empresa: parseFloat(comissaoEmpresa.toFixed(2)),
         valor_taxa_adm_empresa: parseFloat(taxaAdmTotal.toFixed(2)),
         valor_liquido_empresa: parseFloat(valorLiquidoEmpresa.toFixed(2)),
+        valor_parcela_cliente: parseFloat(valorParcelaCliente.toFixed(2)),
       },
       detalhamento_parcelas: detalharParcelas,
     });
